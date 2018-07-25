@@ -1,0 +1,55 @@
+version: '3.6'
+
+services:
+    smeetz-app-backend:
+        build:
+            context: ./php-fpm
+            dockerfile: Dockerfile-dev
+        working_dir: /var/www/smeetz-backend
+        ports:
+            - ${PHP_FPM_PORT}:9000
+        environment:
+            - XDEBUG_REMOTE_ENABLE=${XDEBUG_REMOTE_ENABLE}
+            - XDEBUG_CONNECT_BACK=${XDEBUG_CONNECT_BACK}
+            - XDEBUG_IDEKEY=${XDEBUG_IDEKEY}
+            - XDEBUG_PORT=${XDEBUG_PORT}
+            - XDEBUG_REMOTE_HOST=${SERVER_NAME}
+        networks:
+            - smeetz-backend
+        volumes:
+            - ${APP_PATH_BACKEND}:/var/www/smeetz-backend
+            - ./data/logs/php/:/var/log/php/php-fpm.log
+    smeetz-nginx:
+        build:
+            context: ./nginx
+            dockerfile: Dockerfile-dev
+        working_dir: /var/www
+        ports:
+            - ${APP_PORT}:80
+        depends_on:
+          - smeetz-app-backend
+        expose:
+          - 8080
+        networks:
+            - smeetz-backend
+            - smeetz-frontend
+        volumes:
+            - ${APP_PATH_BACKEND}:/var/www/smeetz-backend
+            - ./data/logs/nginx/:/var/log/nginx
+    smeetz-database:
+        image: mysql:5.7
+        ports:
+            - ${SMEETZ_MYSQL_PORT}:3306
+        environment:
+            MYSQL_USER: ${SMEETZ_MYSQL_USER}
+            MYSQL_DATABASE: ${SMEETZ_MYSQL_DATABASE}
+            MYSQL_PASSWORD: ${SMEETZ_MYSQL_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${SMEETZ_MYSQL_PASSWORD}
+        networks:
+            - smeetz-backend
+        restart: always
+        volumes:
+           - ./data/db:/var/lib/mysql
+networks:
+  smeetz-backend:
+  smeetz-frontend:

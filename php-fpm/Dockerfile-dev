@@ -1,0 +1,53 @@
+FROM php:7.2-fpm
+
+# update and install libs
+RUN apt-get -qq update && apt-get -qq install -y \
+        git \
+        libcurl4-gnutls-dev \
+        libfreetype6-dev \
+        libgmp-dev \
+        libicu-dev \
+        libjpeg62-turbo-dev \
+        libmcrypt-dev \
+        libpq-dev \
+        vim \
+        wget \
+        unzip
+
+
+# link gmp
+RUN ln -s /usr/include/x86_64-linux-gnu/gmp.h /usr/include/gmp.h
+
+# set timezone
+RUN ln -fs /usr/share/zoneinfo/Europe/Kiev /etc/localtime && dpkg-reconfigure -f noninteractive tzdata
+RUN "date"
+
+# install php extensions
+#RUN docker-php-ext-install -j$(nproc) bcmath iconv mcrypt
+RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/
+RUN docker-php-ext-install -j$(nproc) gd gmp intl opcache sockets zip curl pdo_pgsql mbstring pdo_mysql
+
+# add conf.d/php.ini
+COPY ./config-dev/php.ini /usr/local/etc/php/conf.d/
+COPY ./config-dev/php-fpm.ini /usr/local/etc/
+
+# install php data structures
+#RUN pecl install ds
+#&& docker-php-ext-enable ds
+
+# sodium
+#RUN pecl install libsodium
+
+# ImageMagick
+#RUN apt-get update && apt-get install -y libmagickwand-6.q16-dev --no-install-recommends \
+#&& ln -s /usr/lib/x86_64-linux-gnu/ImageMagick-6.8.9/bin-Q16/MagickWand-config-dev /usr/bin \
+#&& pecl install imagick \
+#&& echo "extension=imagick.so" > /usr/local/etc/php/conf.d/ext-imagick.ini
+
+# install xdebug
+RUN pecl install redis-4.0.2 \
+	&& pecl install xdebug-2.6.0 \
+	&& docker-php-ext-enable redis xdebug
+COPY ./config-dev/php-xdebug.ini /usr/local/etc/php/conf.d/php-xdebug.ini
+
+COPY --from=composer:1 /usr/bin/composer /usr/bin/composer
